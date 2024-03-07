@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+
+<!-- Copyright 2014 Info Tech, Inc. Provided under the MIT license. See LICENSE file for details. -->
+
+<html>
+  <head>
+    <title>Public-Key Encryption</title>
+    <script src="rsa.js"></script>
+    <script>
+      // function importPublicKeyFile(elm) {
+      //   console.log(elm.files);
+      //   importPublicKey(elm.files[0]);
+      // }
+      // function importPrivateKeyFile(elm) {
+      //   console.log(elm.files);
+      //   importPrivateKey(elm.files[0]);
+      // }
+    </script>
+  </head>
+
+  <body>
+    <h1>Public-Key Encryption</h1>
+
+    <section id="encrypt-and-decrypt">
+      <div style="padding: 10px 0">
+        <button id="downloadKeys">Download Keys</button>
+      </div>
+
+      <div style="padding: 10px 0">
+        <label htmlFor="dropzone-file-pem-public" style="padding: 5px 8px; border: solid 1px gray"> Import Public Key <input id="dropzone-file-pem-public" type="file" style="display: none" /> </label>
+        <label htmlFor="dropzone-file-pem-private" style="padding: 5px 8px; border: solid 1px gray">
+          Import Private Key <input id="dropzone-file-pem-private" type="file" style="display: none" />
+        </label>
+      </div>
+      <div style="padding: 10px 0">
+        <input type="file" id="source-file" />
+      </div>
+      <div style="padding: 10px 0">
+        <button id="encrypt">Encrypt File</button>
+        <button id="decrypt">Decrypt File</button>
+      </div>
+    </section>
+
+    <section id="results">
+      Download results:
+      <ul id="download-links"></ul>
+    </section>
+  </body>
+</html>
