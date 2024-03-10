@@ -60,21 +60,20 @@ export const _Home = () => {
   };
 
   return (
-    <main className={`flex min-h-screen flex-col items-center p-24 ${inter.className}`}>
-      <button id="downloadKeys" className="bg-blue-500 text-white px-4 py-2 rounded-md" onClick={exportKeyPair}>
-        Download Keys
-      </button>
+    <main className={`flex min-h-screen flex-col items-center p-10 ${inter.className}`}>
+      <div className="flex flex-col justify-center text-center gap-4">
+        <button id="downloadKeys" className="bg-blue-500 text-white px-4 py-2 rounded-md" onClick={exportKeyPair}>
+          Download Keys
+        </button>
 
-      <div className="flex justify-center gap-8 mt-4">
-        <label htmlFor="dropzone-file-pem-public" className="cursor-pointer bg-yellow-600 text-white px-4 py-2 rounded-md">
+        <label htmlFor="dropzone-file-pem-public" className="cursor-pointer bg-yellow-600 text-white px-4 py-2 rounded-md mt-6">
           Import Public Key <input id="dropzone-file-pem-public" type="file" onChange={importPublicKeyFile} className="hidden" />{' '}
         </label>
         <label htmlFor="dropzone-file-pem-private" className="cursor-pointer bg-orange-600 text-white px-4 py-2 rounded-md">
           Import Private Key <input id="dropzone-file-pem-private" type="file" onChange={importPrivateKeyFile} className="hidden" />{' '}
         </label>
-      </div>
-      <div className="flex justify-center gap-8 mt-4">
-        <label htmlFor="dropzone-file-encrypt" className="cursor-pointer bg-gray-500 text-white px-4 py-2 rounded-md">
+
+        <label htmlFor="dropzone-file-encrypt" className="cursor-pointer bg-gray-500 text-white px-4 py-2 rounded-md mt-6">
           Encrypt File <input id="dropzone-file-encrypt" type="file" onChange={encryptFile} className="hidden" />{' '}
         </label>
         <label htmlFor="dropzone-file-decrypt" className="cursor-pointer bg-green-600 text-white px-4 py-2 rounded-md">
