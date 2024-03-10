@@ -7,36 +7,7 @@ interface KeyPair {
 
 let keyPair: KeyPair; // Used by several handlers later
 
-// document.addEventListener('DOMContentLoaded', function () {
-//   'use strict';
-
-//   // Fix Apple prefix if needed
-//   if (window.crypto && !window.crypto.subtle && window.crypto.webkitSubtle) {
-//     window.crypto.subtle = window.crypto.webkitSubtle; // Won't work if subtle already exists
-//   }
-
-//   if (!window.crypto || !window.crypto.subtle) {
-//     alert('Your current browser does not support the Web Cryptography API! This page will not work.');
-//     return;
-//   }
-
-//   createAndSaveAKeyPair()
-//     .then(function () {
-//       // Only enable the cryptographic operation buttons if a key pair can be created
-//       document.getElementById('dropzone-file-pem-public').addEventListener('change', importPublicKeyFile);
-//       document.getElementById('dropzone-file-pem-private').addEventListener('change', importPrivateKeyFile);
-//       document.getElementById('downloadKeys').addEventListener('click', exportKeyPair);
-//       document.getElementById('encrypt').addEventListener('click', encrypt);
-//       document.getElementById('decrypt').addEventListener('click', decrypt);
-//     })
-//     .catch(function (err: Error) {
-//       alert('Could not create a keyPair or enable buttons: ' + err.message);
-//     });
-// });
-
-// Key pair creation:
-
-export const createAndSaveAKeyPair = (): Promise<CryptoKeyPair> => {
+export const generateKeyPair = (): Promise<CryptoKeyPair> => {
   // Returns a promise.
   // Takes no input, yields no output to then handler.
   // Side effect: updates keyPair in enclosing scope with new value.

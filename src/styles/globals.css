@@ -16,14 +16,11 @@
   }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+
+@layer components {
+  .btn {
+    @apply cursor-pointer text-white px-4 py-2 rounded-md shadow-md;
+  }
 }
 
 @layer utilities {
