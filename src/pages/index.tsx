@@ -4,7 +4,7 @@ export default function Index() {
   return (
     <>
       <Home />
-      <Home_OLD />
+      {/*<Home_OLD />*/}
     </>
   );
 }
