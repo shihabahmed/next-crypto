@@ -1,11 +1,65 @@
-import { FC } from 'react';
-
 interface KeyPair {
   publicKey: CryptoKey;
   privateKey: CryptoKey;
 }
 
 let keyPair: KeyPair; // Used by several handlers later
+
+const helper = {
+  _arrayBufferToBase64: (arrayBuffer: ArrayBuffer): string => {
+    const byteArray = new Uint8Array(arrayBuffer);
+    let byteString = '';
+    for (let i = 0; i < byteArray.byteLength; i++) {
+      byteString += String.fromCharCode(byteArray[i]);
+    }
+    const b64 = window.btoa(byteString);
+
+    return b64;
+  },
+  _addNewLines: (str: string): string => {
+    let finalString = '';
+    while (str.length > 0) {
+      finalString += str.substring(0, 64) + '\n';
+      str = str.substring(64);
+    }
+
+    return finalString;
+  },
+  _toPem: (privateKey: ArrayBuffer, keyType: 'private' | 'public'): string => {
+    const b64 = helper._addNewLines(helper._arrayBufferToBase64(privateKey));
+    const pem =
+      keyType === 'private'
+        ? `-----BEGIN PRIVATE KEY-----\n${b64}-----END PRIVATE KEY-----`
+        : `-----BEGIN PUBLIC KEY-----\n${b64}-----END PUBLIC KEY-----`;
+
+    return pem;
+  },
+  _downloadPemFile: (content: string, fileName: string): void => {
+    const link = document.createElement('a');
+    const file = new Blob([content], { type: 'text/plain' });
+    link.href = URL.createObjectURL(file);
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  },
+  _str2ab: (pem: string, isPrivate = false): ArrayBuffer => {
+    console.log(pem);
+    const pemHeader = isPrivate ? '-----BEGIN PRIVATE KEY-----' : '-----BEGIN PUBLIC KEY-----';
+    const pemFooter = isPrivate ? '-----END PRIVATE KEY-----' : '-----END PUBLIC KEY-----';
+
+    const pemContents = pem.substring(pemHeader.length, pem.length - pemFooter.length);
+
+    // base64 decode the string to get the binary data
+    const str = window.atob(pemContents);
+
+    const buf = new ArrayBuffer(str.length);
+    const bufView = new Uint8Array(buf);
+    for (let i = 0, strLen = str.length; i < strLen; i++) {
+      bufView[i] = str.charCodeAt(i);
+    }
+    return buf;
+  },
+};
 
 export const generateKeyPair = (): Promise<CryptoKeyPair> => {
   // Returns a promise.
@@ -18,10 +72,10 @@ export const generateKeyPair = (): Promise<CryptoKeyPair> => {
         name: 'RSA-OAEP',
         modulusLength: 2048,
         publicExponent: new Uint8Array([1, 0, 1]), // 24 bit representation of 65537
-        hash: { name: 'SHA-256' }
+        hash: { name: 'SHA-256' },
       },
       true, // can extract it later if we want
-      ['encrypt', 'decrypt']
+      ['encrypt', 'decrypt'],
     )
     .then((keys: CryptoKeyPair) => {
       keyPair = keys;
@@ -29,96 +83,47 @@ export const generateKeyPair = (): Promise<CryptoKeyPair> => {
     });
 };
 
-const _arrayBufferToBase64 = (arrayBuffer: ArrayBuffer): string => {
-  const byteArray = new Uint8Array(arrayBuffer);
-  let byteString = '';
-  for (let i = 0; i < byteArray.byteLength; i++) {
-    byteString += String.fromCharCode(byteArray[i]);
-  }
-  const b64 = window.btoa(byteString);
-
-  return b64;
-};
-
-const addNewLines = (str: string): string => {
-  let finalString = '';
-  while (str.length > 0) {
-    finalString += str.substring(0, 64) + '\n';
-    str = str.substring(64);
-  }
-
-  return finalString;
-};
-
-const toPem = (privateKey: ArrayBuffer, keyType: 'private' | 'public'): string => {
-  const b64 = addNewLines(_arrayBufferToBase64(privateKey));
-  const pem = keyType === 'private' ? `-----BEGIN PRIVATE KEY-----\n${b64}-----END PRIVATE KEY-----` : `-----BEGIN PUBLIC KEY-----\n${b64}-----END PUBLIC KEY-----`;
-
-  return pem;
-};
-
 export const exportKeyPair = async (): Promise<void> => {
   const keyPairPem = {
     publicKey: '',
-    privateKey: ''
+    privateKey: '',
   };
   const exportedPrivateKey = await window.crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
-  keyPairPem.privateKey = toPem(exportedPrivateKey, 'private');
+  keyPairPem.privateKey = helper._toPem(exportedPrivateKey, 'private');
 
   const exportedPublicKey = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
-  keyPairPem.publicKey = toPem(exportedPublicKey, 'public');
+  keyPairPem.publicKey = helper._toPem(exportedPublicKey, 'public');
 
   if (keyPairPem.privateKey) {
-    downloadPemFile(keyPairPem.privateKey, 'rsa_private_key.pem');
+    helper._downloadPemFile(keyPairPem.privateKey, 'rsa_private_key.pem');
   }
   if (keyPairPem.publicKey) {
-    downloadPemFile(keyPairPem.publicKey, 'rsa_public_key.pem');
+    helper._downloadPemFile(keyPairPem.publicKey, 'rsa_public_key.pem');
   }
 };
 
-const downloadPemFile = (content: string, fileName: string): void => {
-  const link = document.createElement('a');
-  const file = new Blob([content], { type: 'text/plain' });
-  link.href = URL.createObjectURL(file);
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(link.href);
+export const importPrivateKey = async (key: string): Promise<CryptoKey> => {
+  const privateKey = helper._str2ab(key, true);
+  const importedKey = await crypto.subtle.importKey(
+    'pkcs8', // PKCS#8 format
+    privateKey,
+    { name: 'RSA-OAEP', hash: 'SHA-256' },
+    false, // not extractable
+    ['decrypt'],
+  );
+  return importedKey;
 };
 
-const str2ab = (pem: string, isPrivate = false): ArrayBuffer => {
-  const pemHeader = isPrivate ? '-----BEGIN PRIVATE KEY-----' : '-----BEGIN PUBLIC KEY-----';
-  const pemFooter = isPrivate ? '-----END PRIVATE KEY-----' : '-----END PUBLIC KEY-----';
-
-  const pemContents = pem.substring(pemHeader.length, pem.length - pemFooter.length);
-
-  // base64 decode the string to get the binary data
-  const str = window.atob(pemContents);
-
-  const buf = new ArrayBuffer(str.length);
-  const bufView = new Uint8Array(buf);
-  for (let i = 0, strLen = str.length; i < strLen; i++) {
-    bufView[i] = str.charCodeAt(i);
-  }
-  return buf;
-};
-
-export const importPrivateKey = (file: File): void => {
+export const importPrivateKeyFile = (file: File): void => {
   try {
     const reader = new FileReader();
     reader.onload = async function () {
       // const privateKey = new TextEncoder().encode(reader.result);
       // convert from a binary string to an ArrayBuffer
-      const privateKey = str2ab(reader.result as string, true);
-      const importedKey = await crypto.subtle.importKey(
-        'pkcs8', // PKCS#8 format
-        privateKey,
-        { name: 'RSA-OAEP', hash: 'SHA-256' },
-        false, // not extractable
-        ['decrypt']
-      );
+      const importedKey = await importPrivateKey(reader.result as string);
       keyPair = {
         ...keyPair,
-        privateKey: importedKey
+        privateKey: importedKey,
       };
     };
     reader.readAsText(file);
@@ -127,21 +132,26 @@ export const importPrivateKey = (file: File): void => {
   }
 };
 
-export const importPublicKey = (file: File): void => {
+export const importPublicKey = async (key: string): Promise<CryptoKey> => {
+  const publicKey = helper._str2ab(key);
+  const importedKey = await crypto.subtle.importKey(
+    'spki', // X.509 SubjectPublicKeyInfo format
+    publicKey,
+    { name: 'RSA-OAEP', hash: 'SHA-256' },
+    false, // not extractable
+    ['encrypt'],
+  );
+  return importedKey;
+};
+
+export const importPublicKeyFile = (file: File): void => {
   try {
     const reader = new FileReader();
     reader.onload = async function () {
-      const publicKey = str2ab(reader.result as string);
-      const importedKey = await crypto.subtle.importKey(
-        'spki', // X.509 SubjectPublicKeyInfo format
-        publicKey,
-        { name: 'RSA-OAEP', hash: 'SHA-256' },
-        false, // not extractable
-        ['encrypt']
-      );
+      const importedKey = await importPublicKey(reader.result as string);
       keyPair = {
         ...keyPair,
-        publicKey: importedKey
+        publicKey: importedKey,
       };
     };
     reader.readAsText(file);
@@ -149,8 +159,6 @@ export const importPublicKey = (file: File): void => {
     console.error('Error importing public key:', error);
   }
 };
-
-// Click handlers to encrypt or decrypt the given file:
 
 export const encrypt = (plainText: ArrayBuffer): Promise<string | void> => {
   const _encrypt = (plainText: ArrayBuffer, publicKey: CryptoKey): Promise<Blob> => {
@@ -198,13 +206,17 @@ export const encrypt = (plainText: ArrayBuffer): Promise<string | void> => {
           length, // Always a 2 byte unsigned integer
           encryptedKey, // "length" bytes long
           encryptedFile[0], // 16 bytes long initialization vector
-          encryptedFile[1] // Remainder is the ciphertext
+          encryptedFile[1], // Remainder is the ciphertext
         ],
-        { type: 'application/octet-stream' }
+        { type: 'application/octet-stream' },
       );
     };
 
-    return window.crypto.subtle.generateKey({ name: 'AES-CBC', length: 128 }, true, ['encrypt', 'decrypt']).then(encryptPlaintext).then(encryptSessionKey).then(packageResults);
+    return window.crypto.subtle
+      .generateKey({ name: 'AES-CBC', length: 128 }, true, ['encrypt', 'decrypt'])
+      .then(encryptPlaintext)
+      .then(encryptSessionKey)
+      .then(packageResults);
   }; // End of encrypt
 
   return _encrypt(plainText, keyPair.publicKey)
@@ -218,43 +230,43 @@ export const encrypt = (plainText: ArrayBuffer): Promise<string | void> => {
 };
 
 export const decrypt = (data: ArrayBuffer): Promise<string | void> => {
-    // First, separate out the relevant pieces from the file.
-    const keyLength = new Uint16Array(data, 0, 2)[0]; // First 16 bit integer
-    const encryptedKey = new Uint8Array(data, 2, keyLength);
-    const iv = new Uint8Array(data, 2 + keyLength, 16);
-    const cipherText = new Uint8Array(data, 2 + keyLength + 16);
+  // First, separate out the relevant pieces from the file.
+  const keyLength = new Uint16Array(data, 0, 2)[0]; // First 16 bit integer
+  const encryptedKey = new Uint8Array(data, 2, keyLength);
+  const iv = new Uint8Array(data, 2 + keyLength, 16);
+  const cipherText = new Uint8Array(data, 2 + keyLength + 16);
 
-    const _decrypt = (cipherText: Uint8Array, iv: Uint8Array, encryptedSessionKey: Uint8Array, privateKey: CryptoKey): Promise<Blob> => {
-      // Returns a Promise the yields a Blob containing the decrypted cipherText.
+  const _decrypt = (cipherText: Uint8Array, iv: Uint8Array, encryptedSessionKey: Uint8Array, privateKey: CryptoKey): Promise<Blob> => {
+    // Returns a Promise the yields a Blob containing the decrypted cipherText.
 
-      const decryptKey = (encryptedKey: Uint8Array, privateKey: CryptoKey): Promise<CryptoKey> => {
-        // Returns a Promise that yields a Uint8Array AES key.
-        // encryptedKey is a Uint8Array, privateKey is the privateKey
-        // property of a Key key pair.
-        return window.crypto.subtle.decrypt({ name: 'RSA-OAEP' }, privateKey, encryptedKey).then((keyBytes: ArrayBuffer): Promise<CryptoKey> => {
-          // Returns a Promise yielding an AES-CBC Key from the
-          // Uint8Array of bytes it is given.
-          return window.crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC', length: 128 }, true, ['encrypt', 'decrypt']);
-        });
-      }
-
-      const decryptCipherText = (sessionKey: CryptoKey): Promise<Blob> => {
-        // Returns a Promise yielding a Blob containing the decryption of cipherText
-        // (from an enclosing scope) using the sessionKey and the iv
-        // (initialization vector, from an enclosing scope).
-        return window.crypto.subtle.decrypt({ name: 'AES-CBC', iv: iv }, sessionKey, cipherText).then((plainText) => {
-          return new Blob([new Uint8Array(plainText)], { type: 'application/octet-stream' });
-        });
-      }
-      
-      return decryptKey(encryptedSessionKey, privateKey).then(decryptCipherText);
-    }; // end of decrypt
-
-    return _decrypt(cipherText, iv, encryptedKey, keyPair.privateKey)
-      .then((blob) => {
-        return URL.createObjectURL(blob);
-      })
-      .catch((err: Error) => {
-        alert('Something went wrong decrypting: ' + err.message + '\n' + err.stack);
+    const decryptKey = (encryptedKey: Uint8Array, privateKey: CryptoKey): Promise<CryptoKey> => {
+      // Returns a Promise that yields a Uint8Array AES key.
+      // encryptedKey is a Uint8Array, privateKey is the privateKey
+      // property of a Key key pair.
+      return window.crypto.subtle.decrypt({ name: 'RSA-OAEP' }, privateKey, encryptedKey).then((keyBytes: ArrayBuffer): Promise<CryptoKey> => {
+        // Returns a Promise yielding an AES-CBC Key from the
+        // Uint8Array of bytes it is given.
+        return window.crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC', length: 128 }, true, ['encrypt', 'decrypt']);
       });
-}; // end of decrypt
+    };
+
+    const decryptCipherText = (sessionKey: CryptoKey): Promise<Blob> => {
+      // Returns a Promise yielding a Blob containing the decryption of cipherText
+      // (from an enclosing scope) using the sessionKey and the iv
+      // (initialization vector, from an enclosing scope).
+      return window.crypto.subtle.decrypt({ name: 'AES-CBC', iv: iv }, sessionKey, cipherText).then((plainText) => {
+        return new Blob([new Uint8Array(plainText)], { type: 'application/octet-stream' });
+      });
+    };
+
+    return decryptKey(encryptedSessionKey, privateKey).then(decryptCipherText);
+  }; // end of decrypt
+
+  return _decrypt(cipherText, iv, encryptedKey, keyPair.privateKey)
+    .then((blob) => {
+      return URL.createObjectURL(blob);
+    })
+    .catch((err: Error) => {
+      alert('Something went wrong decrypting: ' + err.message + '\n' + err.stack);
+    });
+};

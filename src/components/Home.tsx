@@ -1,4 +1,4 @@
-import { generateKeyPair, decrypt, encrypt, exportKeyPair, importPrivateKey, importPublicKey } from '@/helper/rsa';
+import { generateKeyPair, decrypt, encrypt, exportKeyPair, importPrivateKeyFile, importPublicKeyFile } from '@/helper/rsa';
 import { Inter } from 'next/font/google';
 import { useEffect, useState } from 'react';
 
@@ -13,49 +13,48 @@ export const _Home = () => {
     generateKeyPair();
   }, []);
 
-  const importPublicKeyFile = (e: any) => {
-    importPublicKey(e.target.files[0]);
-  };
-
-  const importPrivateKeyFile = (e: any) => {
-    importPrivateKey(e.target.files[0]);
-  };
-
-  const encryptFile = (e: any) => {
-    if (e.target.files.length > 0) {
-      const reader = new FileReader();
-      reader.onload = (): void => {
-        encrypt(reader.result as ArrayBuffer).then((url: string | void) => {
-          if (url) {
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'encrypted.mp3';
-            link.click();
-            URL.revokeObjectURL(link.href);
-          }
-        });
-      };
-      reader.readAsArrayBuffer(e.target.files[0]);
-      e.target.value = null;
-    }
-  };
-
-  const decryptFile = (e: any) => {
-    if (e.target.files.length > 0) {
-      const reader = new FileReader();
-      reader.onload = (): void => {
-        decrypt(reader.result as ArrayBuffer).then((url: string | void) => {
-          if (url) {
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'decrypted.mp3';
-            link.click();
-            URL.revokeObjectURL(link.href);
-          }
-        });
-      };
-      reader.readAsArrayBuffer(e.target.files[0]);
-      e.target.value = null;
+  const eventHandler = {
+    importPublicKeyFile: (e: any) => {
+      importPublicKeyFile(e.target.files[0]);
+    },
+    importPrivateKeyFile: (e: any) => {
+      importPrivateKeyFile(e.target.files[0]);
+    },
+    encryptFile: (e: any) => {
+      if (e.target.files.length > 0) {
+        const reader = new FileReader();
+        reader.onload = (): void => {
+          encrypt(reader.result as ArrayBuffer).then((url: string | void) => {
+            if (url) {
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = 'encrypted.mp3';
+              link.click();
+              URL.revokeObjectURL(link.href);
+            }
+          });
+        };
+        reader.readAsArrayBuffer(e.target.files[0]);
+        e.target.value = null;
+      }
+    },
+    decryptFile: (e: any) => {
+      if (e.target.files.length > 0) {
+        const reader = new FileReader();
+        reader.onload = (): void => {
+          decrypt(reader.result as ArrayBuffer).then((url: string | void) => {
+            if (url) {
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = 'decrypted.mp3';
+              link.click();
+              URL.revokeObjectURL(link.href);
+            }
+          });
+        };
+        reader.readAsArrayBuffer(e.target.files[0]);
+        e.target.value = null;
+      }
     }
   };
 
@@ -70,17 +69,17 @@ export const _Home = () => {
         </button>
 
         <label htmlFor="dropzone-file-pem-public" className="btn cursor-pointer bg-amber-500 mt-6">
-          Import Public Key <input id="dropzone-file-pem-public" type="file" onChange={importPublicKeyFile} className="hidden" />{' '}
+          Import Public Key <input id="dropzone-file-pem-public" type="file" onChange={eventHandler.importPublicKeyFile} className="hidden" />{' '}
         </label>
         <label htmlFor="dropzone-file-pem-private" className="btn cursor-pointer bg-orange-500">
-          Import Private Key <input id="dropzone-file-pem-private" type="file" onChange={importPrivateKeyFile} className="hidden" />{' '}
+          Import Private Key <input id="dropzone-file-pem-private" type="file" onChange={eventHandler.importPrivateKeyFile} className="hidden" />{' '}
         </label>
 
         <label htmlFor="dropzone-file-encrypt" className="btn cursor-pointer bg-gray-600 mt-6">
-          Encrypt File <input id="dropzone-file-encrypt" type="file" onChange={encryptFile} className="hidden" />{' '}
+          Encrypt File <input id="dropzone-file-encrypt" type="file" onChange={eventHandler.encryptFile} className="hidden" />{' '}
         </label>
         <label htmlFor="dropzone-file-decrypt" className="btn cursor-pointer bg-lime-600">
-          Decrypt File <input id="dropzone-file-decrypt" type="file" onChange={decryptFile} className="hidden" />{' '}
+          Decrypt File <input id="dropzone-file-decrypt" type="file" onChange={eventHandler.decryptFile} className="hidden" />{' '}
         </label>
       </div>
     </main>
