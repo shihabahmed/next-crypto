@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 const inter = Inter({ subsets: ['latin'] });
 
 export const _Home = () => {
-  const [keyPair, setKeyPair] = useState({ publicKey: '', privateKey: '' });
+  const [keyPair, setKeyPair] = useState<CryptoKeyPair>();
   const [audioData, setAudioData] = useState<any>();
   const [encryptedData, setEncryptedData] = useState<any>();
 
@@ -14,17 +14,36 @@ export const _Home = () => {
   }, []);
 
   const eventHandler = {
+    generateKeyPair: () => {
+      generateKeyPair().then(keys=> {
+        // exportKeyPair(keys);
+        setKeyPair(keys);
+        // setPrivateKey(keys.privateKey)
+        // setPublicKey(keys.publicKey)
+      });
+    },
+    exportKeyPair: () => {
+      // privateKey && exportPrivateKey(privateKey);
+      // publicKey && exportPrivateKey(publicKey);
+      if (keyPair) {
+        exportKeyPair(keyPair, true)
+      }
+    },
     importPublicKeyFile: (e: any) => {
-      importPublicKeyFile(e.target.files[0]);
+      importPublicKeyFile(e.target.files[0], (key: any) => {
+        setKeyPair({...keyPair, ...key});
+      });
     },
     importPrivateKeyFile: (e: any) => {
-      importPrivateKeyFile(e.target.files[0]);
+      importPrivateKeyFile(e.target.files[0], (key: any) => {
+        setKeyPair({...keyPair, ...key});
+      });
     },
     encryptFile: (e: any) => {
       if (e.target.files.length > 0) {
         const reader = new FileReader();
         reader.onload = (): void => {
-          encrypt(reader.result as ArrayBuffer).then((url: string | void) => {
+          encrypt(reader.result as ArrayBuffer, keyPair?.publicKey).then((url: string | void) => {
             if (url) {
               const link = document.createElement('a');
               link.href = url;
@@ -42,7 +61,7 @@ export const _Home = () => {
       if (e.target.files.length > 0) {
         const reader = new FileReader();
         reader.onload = (): void => {
-          decrypt(reader.result as ArrayBuffer).then((url: string | void) => {
+          decrypt(reader.result as ArrayBuffer, keyPair?.privateKey).then((url: string | void) => {
             if (url) {
               const link = document.createElement('a');
               link.href = url;
@@ -58,13 +77,20 @@ export const _Home = () => {
     }
   };
 
+  useEffect(eventHandler.generateKeyPair, []);
+
+  useEffect(() => {
+    keyPair && typeof keyPair !== 'undefined' && exportKeyPair(keyPair);
+  }, [keyPair]);
+
+
   return (
     <main className={`flex min-h-screen flex-col items-center p-10 ${inter.className}`}>
       <div className="flex flex-col justify-center text-center gap-4">
-        <button id="downloadKeys" className="btn bg-indigo-500" onClick={generateKeyPair}>
+        <button id="downloadKeys" className="btn bg-indigo-500" onClick={eventHandler.generateKeyPair}>
           Regenerate Keys
         </button>
-        <button id="downloadKeys" className="btn bg-sky-500" onClick={exportKeyPair}>
+        <button id="downloadKeys" className="btn bg-sky-500" onClick={eventHandler.exportKeyPair}>
           Download Keys
         </button>
 

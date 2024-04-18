@@ -1,9 +1,7 @@
-interface KeyPair {
-  publicKey: CryptoKey;
-  privateKey: CryptoKey;
+export interface KeyPair {
+  publicKey?: CryptoKey;
+  privateKey?: CryptoKey;
 }
-
-let keyPair: KeyPair; // Used by several handlers later
 
 const helper = {
   _arrayBufferToBase64: (arrayBuffer: ArrayBuffer): string => {
@@ -27,10 +25,7 @@ const helper = {
   },
   _toPem: (privateKey: ArrayBuffer, keyType: 'private' | 'public'): string => {
     const b64 = helper._addNewLines(helper._arrayBufferToBase64(privateKey));
-    const pem =
-      keyType === 'private'
-        ? `-----BEGIN PRIVATE KEY-----\n${b64}-----END PRIVATE KEY-----`
-        : `-----BEGIN PUBLIC KEY-----\n${b64}-----END PUBLIC KEY-----`;
+    const pem = keyType === 'private' ? `-----BEGIN PRIVATE KEY-----\n${b64}-----END PRIVATE KEY-----` : `-----BEGIN PUBLIC KEY-----\n${b64}-----END PUBLIC KEY-----`;
 
     return pem;
   },
@@ -43,7 +38,6 @@ const helper = {
     URL.revokeObjectURL(link.href);
   },
   _str2ab: (pem: string, isPrivate = false): ArrayBuffer => {
-    console.log(pem);
     const pemHeader = isPrivate ? '-----BEGIN PRIVATE KEY-----' : '-----BEGIN PUBLIC KEY-----';
     const pemFooter = isPrivate ? '-----END PRIVATE KEY-----' : '-----END PUBLIC KEY-----';
 
@@ -59,6 +53,9 @@ const helper = {
     }
     return buf;
   },
+  _saveToLocalStorage: (value: string, key: string) => {
+    localStorage.setItem(key, value);
+  }
 };
 
 export const generateKeyPair = (): Promise<CryptoKeyPair> => {
@@ -72,21 +69,46 @@ export const generateKeyPair = (): Promise<CryptoKeyPair> => {
         name: 'RSA-OAEP',
         modulusLength: 2048,
         publicExponent: new Uint8Array([1, 0, 1]), // 24 bit representation of 65537
-        hash: { name: 'SHA-256' },
+        hash: { name: 'SHA-256' }
       },
       true, // can extract it later if we want
-      ['encrypt', 'decrypt'],
+      ['encrypt', 'decrypt']
     )
     .then((keys: CryptoKeyPair) => {
-      keyPair = keys;
       return keys;
     });
 };
 
-export const exportKeyPair = async (): Promise<void> => {
+export const storePrivateKey = async (key: CryptoKey): Promise<void> => {
+  let keyPem = '';
+
+  if (key) {
+    const exportedPrivateKey = await window.crypto.subtle.exportKey('pkcs8', key);
+    keyPem = helper._toPem(exportedPrivateKey, 'private');
+  }
+
+  if (keyPem) {
+    helper._saveToLocalStorage(keyPem, 'rsa_private_key');
+  }
+};
+
+export const storePublicKey = async (key: CryptoKey): Promise<void> => {
+  let keyPem = '';
+
+  if (key) {
+    const exportedPublicKey = await window.crypto.subtle.exportKey('pkcs8', key);
+    keyPem = helper._toPem(exportedPublicKey, 'public');
+  }
+
+  if (keyPem) {
+    helper._saveToLocalStorage(keyPem, 'rsa_public_key');
+  }
+};
+
+export const exportKeyPair = async (keyPair: CryptoKeyPair, download: boolean = false): Promise<void> => {
   const keyPairPem = {
     publicKey: '',
-    privateKey: '',
+    privateKey: ''
   };
   const exportedPrivateKey = await window.crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
   keyPairPem.privateKey = helper._toPem(exportedPrivateKey, 'private');
@@ -95,10 +117,10 @@ export const exportKeyPair = async (): Promise<void> => {
   keyPairPem.publicKey = helper._toPem(exportedPublicKey, 'public');
 
   if (keyPairPem.privateKey) {
-    helper._downloadPemFile(keyPairPem.privateKey, 'rsa_private_key.pem');
+    download ? helper._downloadPemFile(keyPairPem.privateKey, 'rsa_private_key.pem') : helper._saveToLocalStorage(keyPairPem.privateKey, 'rsa_private_key');
   }
   if (keyPairPem.publicKey) {
-    helper._downloadPemFile(keyPairPem.publicKey, 'rsa_public_key.pem');
+    download ? helper._downloadPemFile(keyPairPem.publicKey, 'rsa_public_key.pem') : helper._saveToLocalStorage(keyPairPem.publicKey, 'rsa_public_key');
   }
 };
 
@@ -108,23 +130,25 @@ export const importPrivateKey = async (key: string): Promise<CryptoKey> => {
     'pkcs8', // PKCS#8 format
     privateKey,
     { name: 'RSA-OAEP', hash: 'SHA-256' },
-    false, // not extractable
-    ['decrypt'],
+    // false, // not extractable
+    true, // extractable
+    ['decrypt']
   );
   return importedKey;
 };
 
-export const importPrivateKeyFile = (file: File): void => {
+export const importPrivateKeyFile = (file: File, callback_fn?: (key: any) => void): void => {
   try {
     const reader = new FileReader();
     reader.onload = async function () {
       // const privateKey = new TextEncoder().encode(reader.result);
       // convert from a binary string to an ArrayBuffer
       const importedKey = await importPrivateKey(reader.result as string);
-      keyPair = {
-        ...keyPair,
-        privateKey: importedKey,
-      };
+      if (typeof callback_fn === 'function') {
+        callback_fn({
+          privateKey: importedKey
+        });
+      }
     };
     reader.readAsText(file);
   } catch (error) {
@@ -138,21 +162,23 @@ export const importPublicKey = async (key: string): Promise<CryptoKey> => {
     'spki', // X.509 SubjectPublicKeyInfo format
     publicKey,
     { name: 'RSA-OAEP', hash: 'SHA-256' },
-    false, // not extractable
-    ['encrypt'],
+    // false, // not extractable
+    true, // extractable
+    ['encrypt']
   );
   return importedKey;
 };
 
-export const importPublicKeyFile = (file: File): void => {
+export const importPublicKeyFile = (file: File, callback_fn?: (key: any) => void): void => {
   try {
     const reader = new FileReader();
     reader.onload = async function () {
       const importedKey = await importPublicKey(reader.result as string);
-      keyPair = {
-        ...keyPair,
-        publicKey: importedKey,
-      };
+      if (typeof callback_fn === 'function') {
+        callback_fn({
+          publicKey: importedKey
+        });
+      }
     };
     reader.readAsText(file);
   } catch (error) {
@@ -160,7 +186,12 @@ export const importPublicKeyFile = (file: File): void => {
   }
 };
 
-export const encrypt = (plainText: ArrayBuffer): Promise<string | void> => {
+export const encrypt = (plainText: ArrayBuffer, key?: CryptoKey): Promise<string | void> => {
+  if (!key)
+    return new Promise((resolve, reject) => {
+      reject('Unable to encrypt data.');
+    });
+
   const _encrypt = (plainText: ArrayBuffer, publicKey: CryptoKey): Promise<Blob> => {
     // Returns a Promise that yields a Blob to its
     // then handler. The Blob points to an encrypted
@@ -206,20 +237,16 @@ export const encrypt = (plainText: ArrayBuffer): Promise<string | void> => {
           length, // Always a 2 byte unsigned integer
           encryptedKey, // "length" bytes long
           encryptedFile[0], // 16 bytes long initialization vector
-          encryptedFile[1], // Remainder is the ciphertext
+          encryptedFile[1] // Remainder is the ciphertext
         ],
-        { type: 'application/octet-stream' },
+        { type: 'application/octet-stream' }
       );
     };
 
-    return window.crypto.subtle
-      .generateKey({ name: 'AES-CBC', length: 128 }, true, ['encrypt', 'decrypt'])
-      .then(encryptPlaintext)
-      .then(encryptSessionKey)
-      .then(packageResults);
+    return window.crypto.subtle.generateKey({ name: 'AES-CBC', length: 128 }, true, ['encrypt', 'decrypt']).then(encryptPlaintext).then(encryptSessionKey).then(packageResults);
   }; // End of encrypt
 
-  return _encrypt(plainText, keyPair.publicKey)
+  return _encrypt(plainText, key)
     .then((blob) => {
       return URL.createObjectURL(blob);
     })
@@ -229,7 +256,12 @@ export const encrypt = (plainText: ArrayBuffer): Promise<string | void> => {
     });
 };
 
-export const decrypt = (data: ArrayBuffer): Promise<string | void> => {
+export const decrypt = (data: ArrayBuffer, key?: CryptoKey): Promise<string | void> => {
+  if (!key)
+    return new Promise((resolve, reject) => {
+      reject('Unable to decrypt data.');
+    });
+
   // First, separate out the relevant pieces from the file.
   const keyLength = new Uint16Array(data, 0, 2)[0]; // First 16 bit integer
   const encryptedKey = new Uint8Array(data, 2, keyLength);
@@ -262,7 +294,7 @@ export const decrypt = (data: ArrayBuffer): Promise<string | void> => {
     return decryptKey(encryptedSessionKey, privateKey).then(decryptCipherText);
   }; // end of decrypt
 
-  return _decrypt(cipherText, iv, encryptedKey, keyPair.privateKey)
+  return _decrypt(cipherText, iv, encryptedKey, key)
     .then((blob) => {
       return URL.createObjectURL(blob);
     })
