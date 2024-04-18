@@ -1,8 +1,3 @@
-export interface KeyPair {
-  publicKey?: CryptoKey;
-  privateKey?: CryptoKey;
-}
-
 const helper = {
   _arrayBufferToBase64: (arrayBuffer: ArrayBuffer): string => {
     const byteArray = new Uint8Array(arrayBuffer);
