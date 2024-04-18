@@ -1,4 +1,18 @@
 const helper = {
+  __key: {
+    private: {
+      name: 'rsa_private_key',
+      storageKey: 'PRIVATE_KEY',
+      prefix: '-----BEGIN PRIVATE KEY-----',
+      suffix: '-----END PRIVATE KEY-----',
+    },
+    public: {
+      name: 'rsa_public_key',
+      storageKey: 'PUBLIC_KEY',
+      prefix: '-----BEGIN PUBLIC KEY-----',
+      suffix: '-----END PUBLIC KEY-----',
+    }
+  },
   _arrayBufferToBase64: (arrayBuffer: ArrayBuffer): string => {
     const byteArray = new Uint8Array(arrayBuffer);
     let byteString = '';
@@ -20,7 +34,7 @@ const helper = {
   },
   _toPem: (privateKey: ArrayBuffer, keyType: 'private' | 'public'): string => {
     const b64 = helper._addNewLines(helper._arrayBufferToBase64(privateKey));
-    const pem = keyType === 'private' ? `-----BEGIN PRIVATE KEY-----\n${b64}-----END PRIVATE KEY-----` : `-----BEGIN PUBLIC KEY-----\n${b64}-----END PUBLIC KEY-----`;
+    const pem = keyType === 'private' ? `${helper.__key.private.prefix}\n${b64}${helper.__key.private.suffix}` : `${helper.__key.public.prefix}\n${b64}${helper.__key.public.suffix}`;
 
     return pem;
   },
@@ -33,8 +47,8 @@ const helper = {
     URL.revokeObjectURL(link.href);
   },
   _str2ab: (pem: string, isPrivate = false): ArrayBuffer => {
-    const pemHeader = isPrivate ? '-----BEGIN PRIVATE KEY-----' : '-----BEGIN PUBLIC KEY-----';
-    const pemFooter = isPrivate ? '-----END PRIVATE KEY-----' : '-----END PUBLIC KEY-----';
+    const pemHeader = isPrivate ? helper.__key.private.prefix : helper.__key.public.prefix;
+    const pemFooter = isPrivate ? helper.__key.private.suffix : helper.__key.public.suffix;
 
     const pemContents = pem.substring(pemHeader.length, pem.length - pemFooter.length);
 
@@ -74,32 +88,6 @@ export const generateKeyPair = (): Promise<CryptoKeyPair> => {
     });
 };
 
-export const storePrivateKey = async (key: CryptoKey): Promise<void> => {
-  let keyPem = '';
-
-  if (key) {
-    const exportedPrivateKey = await window.crypto.subtle.exportKey('pkcs8', key);
-    keyPem = helper._toPem(exportedPrivateKey, 'private');
-  }
-
-  if (keyPem) {
-    helper._saveToLocalStorage(keyPem, 'rsa_private_key');
-  }
-};
-
-export const storePublicKey = async (key: CryptoKey): Promise<void> => {
-  let keyPem = '';
-
-  if (key) {
-    const exportedPublicKey = await window.crypto.subtle.exportKey('pkcs8', key);
-    keyPem = helper._toPem(exportedPublicKey, 'public');
-  }
-
-  if (keyPem) {
-    helper._saveToLocalStorage(keyPem, 'rsa_public_key');
-  }
-};
-
 export const exportKeyPair = async (keyPair: CryptoKeyPair, download: boolean = false): Promise<void> => {
   const keyPairPem = {
     publicKey: '',
@@ -112,10 +100,10 @@ export const exportKeyPair = async (keyPair: CryptoKeyPair, download: boolean = 
   keyPairPem.publicKey = helper._toPem(exportedPublicKey, 'public');
 
   if (keyPairPem.privateKey) {
-    download ? helper._downloadPemFile(keyPairPem.privateKey, 'rsa_private_key.pem') : helper._saveToLocalStorage(keyPairPem.privateKey, 'rsa_private_key');
+    download ? helper._downloadPemFile(keyPairPem.privateKey, `${helper.__key.private.name}.pem`) : helper._saveToLocalStorage(keyPairPem.privateKey, helper.__key.private.storageKey);
   }
   if (keyPairPem.publicKey) {
-    download ? helper._downloadPemFile(keyPairPem.publicKey, 'rsa_public_key.pem') : helper._saveToLocalStorage(keyPairPem.publicKey, 'rsa_public_key');
+    download ? helper._downloadPemFile(keyPairPem.publicKey, `${helper.__key.public.name}.pem`) : helper._saveToLocalStorage(keyPairPem.publicKey, helper.__key.public.storageKey);
   }
 };
 
@@ -147,7 +135,7 @@ export const importPrivateKeyFile = (file: File, callback_fn?: (key: any) => voi
     };
     reader.readAsText(file);
   } catch (error) {
-    console.error('Error importing public key:', error);
+    console.error('Error importing private key:', error);
   }
 };
 
