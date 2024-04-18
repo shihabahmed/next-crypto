@@ -64,6 +64,10 @@ const helper = {
   },
   _saveToLocalStorage: (value: string, key: string) => {
     localStorage.setItem(key, value);
+  },
+  _clearLocalStorage: () => {
+    localStorage.removeItem(helper.__key.private.storageKey);
+    localStorage.removeItem(helper.__key.public.storageKey);
   }
 };
 
@@ -220,7 +224,7 @@ export const encrypt = (plainText: ArrayBuffer, key?: CryptoKey): Promise<string
           length, // Always a 2 byte unsigned integer
           encryptedKey, // "length" bytes long
           encryptedFile[0], // 16 bytes long initialization vector
-          encryptedFile[1] // Remainder is the ciphertext
+          encryptedFile[1] // Remainder is the cipherText
         ],
         { type: 'application/octet-stream' }
       );
