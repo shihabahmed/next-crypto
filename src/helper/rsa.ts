@@ -68,8 +68,21 @@ const helper = {
   _clearLocalStorage: () => {
     localStorage.removeItem(helper.__key.private.storageKey);
     localStorage.removeItem(helper.__key.public.storageKey);
+  },
+  _hasKeyPair: () => {
+    const privateKey = localStorage.getItem(helper.__key.private.storageKey);
+    const publicKey = localStorage.getItem(helper.__key.public.storageKey);
+    return privateKey && publicKey ? true : false;
   }
 };
+
+export const hasKeyPair = () => {
+  helper._hasKeyPair();
+}
+
+export const clearLocalStorage = () => {
+  helper._clearLocalStorage();
+}
 
 export const generateKeyPair = (): Promise<CryptoKeyPair> => {
   // Returns a promise.
